@@ -525,8 +525,8 @@ public class ShoppingListFragment extends Fragment implements
                 dlHelper.getShoppingListItems(listItems -> this.shoppingListItems = listItems),
                 dlHelper.getProductGroups(listItems -> this.productGroups = listItems),
                 dlHelper.getQuantityUnits(listItems -> this.quantityUnits = listItems),
-                dlHelper.getProducts(listItems -> this.products = listItems)
-                //dlHelper.getVolatile((expiring, expired, missing) -> missingItems = missing)
+                dlHelper.getProducts(listItems -> this.products = listItems),
+                dlHelper.getVolatile((expiring, expired, missing) -> missingItems = missing)
         );
         queue.start();
     }

@@ -141,20 +141,11 @@ public class GrocyApi {
         return getUrl("/stock");
     }
 
-    public String getStockcomplete() {
-        return getUrl("/stockcomplete");
-    }
-
     /**
      * Returns details of the given product
      */
     public String getStockProductDetails(int productId) {
         return getUrl("/stock/products/" + productId);
-    }
-
-
-    public String getMissingStockProductDetails() {
-        return getUrl("/objects/products/query/SELECT%20%2A%20FROM%20stock_missing_products%20JOIN%20products%20ON%20products.id%20%3D%3D%20stock_missing_products.id");
     }
 
     /**

@@ -55,6 +55,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import xyz.zedler.patrick.grocy.R;
 import xyz.zedler.patrick.grocy.activity.MainActivity;
@@ -71,7 +72,6 @@ import xyz.zedler.patrick.grocy.helper.DownloadHelper;
 import xyz.zedler.patrick.grocy.helper.EmptyStateHelper;
 import xyz.zedler.patrick.grocy.model.Location;
 import xyz.zedler.patrick.grocy.model.MissingItem;
-import xyz.zedler.patrick.grocy.model.Product;
 import xyz.zedler.patrick.grocy.model.ProductDetails;
 import xyz.zedler.patrick.grocy.model.ProductGroup;
 import xyz.zedler.patrick.grocy.model.QuantityUnit;
@@ -121,7 +121,6 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
     private ArrayList<QuantityUnit> quantityUnits;
     private ArrayList<Location> locations;
     private ArrayList<ProductGroup> productGroups;
-    private ArrayList<Product> products;
 
     private String search;
     private String itemsToDisplay;
@@ -526,12 +525,14 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
 
     private void download() {
         binding.swipeStock.setRefreshing(true);
-        DownloadHelper.Queue queue = dlHelper.newQueue(
-                () -> onQueueEmpty(false),
-                this::onDownloadError
-        );
-
-
+        if(expiringItems == null) {
+            expiringItems = new ArrayList<>();
+        } else {
+            expiringItems.clear();
+        }
+        AtomicBoolean stockItemsDownloaded = new AtomicBoolean(false);
+        AtomicBoolean volatileItemsDownloaded = new AtomicBoolean(false);
+        DownloadHelper.Queue queue = dlHelper.newQueue(this::onQueueEmpty, this::onDownloadError);
         queue.append(
                 dlHelper.getQuantityUnits(quantityUnits -> this.quantityUnits = quantityUnits),
                 dlHelper.getProductGroups(productGroups -> {
@@ -539,10 +540,41 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
                     setMenuProductGroupFilters();
                     updateMenuFilterVisibility();
                 }),
-                dlHelper.getStockItems(stockItems -> this.stockItems = stockItems),
-               // dlHelper.getProducts(listItems -> this.products = listItems),
+                dlHelper.getStockItems(stockItems -> {
+                    this.stockItems = stockItems;
+                    if(missingStockItems == null) {
+                        missingStockItems = new ArrayList<>();
+                    } else {
+                        missingStockItems.clear();
+                    }
+                    for(StockItem stockItem : stockItems) {
+                        if(stockItem.getProduct().getMinStockAmount() > 0) {
+                            if(stockItem.getAmount() < stockItem.getProduct().getMinStockAmount()) {
+                                missingStockItems.add(stockItem);
+                            }
+                        }
+                        if(DateUtil.getDaysFromNow(stockItem.getBestBeforeDate()) == 0) {
+                            // these stockItems are not in volatile items (API bug?)
+                            if(!expiringItems.contains(stockItem)) {
+                                expiringItems.add(stockItem);
+                            }
+                        }
+                    }
+                    // update of chip is necessary because number of items maybe has changed
+                    // (if this lambda function was executed after the one of getVolatile)
+                    chipExpiring.setText(
+                            activity.getString(R.string.msg_expiring_products, expiringItems.size())
+                    );
+                    stockItemsDownloaded.set(true);
+                    if(volatileItemsDownloaded.get()) downloadMissingItemDetails(queue);
+                }),
                 dlHelper.getVolatile((expiring, expired, missing) -> {
-                    expiringItems = expiring;
+                    for(StockItem stockItem : expiring) {
+                        // checking is necessary because same item can already be added above
+                        if(!expiringItems.contains(stockItem)) {
+                            expiringItems.add(stockItem);
+                        }
+                    }
                     expiredItems = expired;
                     missingItems = missing;
                     chipExpiring.setText(
@@ -554,10 +586,10 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
                     chipMissing.setText(
                             activity.getString(R.string.msg_missing_products, missing.size())
                     );
+                    volatileItemsDownloaded.set(true);
+                    if(stockItemsDownloaded.get()) downloadMissingItemDetails(queue);
                 })
-
         );
-
         if(isFeatureEnabled(Constants.PREF.SHOW_SHOPPING_LIST_ICON_IN_STOCK)
                 && isFeatureEnabled(Constants.PREF.FEATURE_SHOPPING_LIST)
         ) {
@@ -582,71 +614,31 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
             );
         }
         queue.start();
-        downloadMissingItemDetails();
     }
 
+    private void downloadMissingItemDetails(DownloadHelper.Queue queue) {
+        if(stockItems == null || missingItems == null || queue == null || dlHelper == null) return;
 
-
-    public void downloadMissingItemDetails() {
-        /*DownloadHelper.Queue queue = dlHelper.newQueue(
-                () -> onQueueEmpty(false),
-                this::onDownloadError
-        );
-*/
         HashMap<Integer, StockItem> stockItemHashMap = new HashMap<>();
-        for(StockItem s : stockItems) {
-            stockItemHashMap.put(s.getProductId(), s); // create HashMap with all productIds of stockItems
+        for(StockItem s : stockItems) stockItemHashMap.put(s.getProductId(), s);
 
-            // TODO: Remove that in v2.0.0 (in server v3.0.0, bug is fixed)
-            if(DateUtil.getDaysFromNow(s.getBestBeforeDate()) == 0) {
-                // these stockItems are not in volatile items (API bug until 2.7.1)
-                if(!expiringItems.contains(s)) expiringItems.add(s);
-            }
-        }
-
-        // TODO: Remove that in v2.0.0 (in server v3.0.0, bug is fixed)
-        // update of chip is necessary because number of items maybe has changed
-        // (if this lambda function was executed after the one of getVolatile)
-        chipExpiring.setText(
-                activity.getString(R.string.msg_expiring_products, expiringItems.size())
-        );
-
-        missingStockItems.clear();
         for(MissingItem missingItem : missingItems) {
-            StockItem missingStockItem = stockItemHashMap.get(missingItem.getId());
-            missingStockItems.add(missingStockItem);
-            /*
-            if(missingStockItem != null) { // already downloaded
-                missingStockItems.add(missingStockItem);
-            } else {
-                queue.append(
+            // prevents items from being displayed twice
+            if(missingItem.getIsPartlyInStock() == 1) continue;
+            if(stockItemHashMap.get(missingItem.getId()) != null) continue;
+
+            queue.append(
                     dlHelper.getProductDetails(missingItem.getId(), productDetails -> {
                         StockItem stockItem = new StockItem(productDetails);
-                        stockItems.add(stockItem); // add to stock list, because it's missing in the stock request
-                                                   // but the web server displays it in stock overview, so we also do it
+                        stockItems.add(stockItem);
                         missingStockItems.add(stockItem);
                     })
-                );
-            }*/
+            ).start();
         }
-        /*
-        if(queue.getSize() > 0) {
-            queue.start();
-        } else {
-            onQueueEmpty(false);
-        }
-        */
-
     }
 
-    private void onQueueEmpty(boolean downloadMissing) {
-        if(downloadMissing) {
-            downloadMissingItemDetails();
-            return;
-        }
-
+    private void onQueueEmpty() {
         binding.swipeStock.setRefreshing(false);
-
         filterItems(itemsToDisplay);
     }
 
@@ -895,7 +887,6 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
                 stockItemAdapter = new StockItemAdapter(
                         activity,
                         displayedItems,
-                        missingItems,
                         quantityUnitHashMap,
                         shoppingListProductIds,
                         daysExpiringSoon,
@@ -906,7 +897,7 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
                 binding.recyclerStock.setAdapter(stockItemAdapter);
             } else {
                 stockItemAdapter.setSortMode(sortMode);
-                stockItemAdapter.updateData(displayedItems, missingItems, shoppingListProductIds);
+                stockItemAdapter.updateData(displayedItems, shoppingListProductIds);
                 stockItemAdapter.notifyDataSetChanged();
             }
             binding.recyclerStock.animate().alpha(1).setDuration(150).start();
@@ -1276,9 +1267,14 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
         if(activity == null) return;
         MenuItem menuItem = activity.getBottomMenu().findItem(R.id.action_filter);
         if(menuItem == null) return;
-        menuItem.setVisible(productGroups != null && !productGroups.isEmpty()
-                && locations != null
-                && !locations.isEmpty());
+        if(productGroups == null || productGroups.isEmpty()
+                || locations == null
+                || locations.isEmpty()
+        ) {
+            menuItem.setVisible(false);
+        } else {
+            menuItem.setVisible(true);
+        }
     }
 
     private void setMenuLocationFilters() {
