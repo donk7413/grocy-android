@@ -56,6 +56,7 @@ import com.google.android.material.bottomappbar.BottomAppBar;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 import com.google.android.material.snackbar.Snackbar;
 
+import java.util.ArrayList;
 import java.util.Objects;
 
 import info.guardianproject.netcipher.proxy.OrbotHelper;
@@ -84,6 +85,7 @@ import xyz.zedler.patrick.grocy.fragment.bottomSheetDialog.DrawerBottomSheetDial
 import xyz.zedler.patrick.grocy.fragment.bottomSheetDialog.ExitMissingBatchBottomSheetDialogFragment;
 import xyz.zedler.patrick.grocy.fragment.bottomSheetDialog.LogoutBottomSheetDialogFragment;
 import xyz.zedler.patrick.grocy.helper.DownloadHelper;
+import xyz.zedler.patrick.grocy.model.StockItem;
 import xyz.zedler.patrick.grocy.util.ClickUtil;
 import xyz.zedler.patrick.grocy.util.ConfigUtil;
 import xyz.zedler.patrick.grocy.util.Constants;
@@ -231,7 +233,7 @@ public class MainActivity extends AppCompatActivity {
                 && resultCode == Activity.RESULT_CANCELED
                 && fragmentCurrent.getClass() == StockFragment.class
         ) {
-            ((StockFragment) fragmentCurrent).refresh();
+           // ((StockFragment) fragmentCurrent).refresh();
         }
     }
 

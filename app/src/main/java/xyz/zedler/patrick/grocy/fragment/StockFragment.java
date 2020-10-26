@@ -53,9 +53,12 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
+import xyz.zedler.patrick.grocy.MyApps;
 import xyz.zedler.patrick.grocy.R;
 import xyz.zedler.patrick.grocy.activity.MainActivity;
 import xyz.zedler.patrick.grocy.activity.ScanInputActivity;
@@ -110,18 +113,12 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
     private InputChip inputChipFilterLocation;
     private InputChip inputChipFilterProductGroup;
 
-    private ArrayList<StockItem> stockItems;
-    private ArrayList<StockItem> expiringItems;
-    private ArrayList<StockItem> expiredItems;
-    private ArrayList<MissingItem> missingItems;
-    private ArrayList<String> shoppingListProductIds;
-    private ArrayList<StockItem> missingStockItems;
-    private ArrayList<StockItem> filteredItems;
-    private ArrayList<StockItem> displayedItems;
-    private ArrayList<QuantityUnit> quantityUnits;
-    private ArrayList<Location> locations;
-    private ArrayList<ProductGroup> productGroups;
+
+
     private ArrayList<Product> products;
+    public static ArrayList<StockItem> filteredItems;
+    public static ArrayList<StockItem> displayedItems;
+    public static ArrayList<StockItem> groupedListItems;
 
     private String search;
     private String itemsToDisplay;
@@ -130,6 +127,7 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
     private int filterProductGroupId;
     private int filterLocationId;
     private int daysExpiringSoon;
+
     private boolean debug;
     private boolean sortAscending;
     private boolean isRestoredInstance;
@@ -192,18 +190,19 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
         gson = new Gson();
 
         // INITIALIZE VARIABLES
+        MyApps.needInit();
 
-        stockItems = new ArrayList<>();
-        expiringItems = new ArrayList<>();
-        expiredItems = new ArrayList<>();
-        missingItems = new ArrayList<>();
-        shoppingListProductIds = new ArrayList<>();
-        missingStockItems = new ArrayList<>();
+        //MyApps.expiringItems = new ArrayList<>();
+        //MyApps.expiredItems = new ArrayList<>();
+        //MyApps.missingItems = new ArrayList<>();
+        // MyApps.missingStockItems = new ArrayList<>();
         filteredItems = new ArrayList<>();
         displayedItems = new ArrayList<>();
-        quantityUnits = new ArrayList<>();
-        locations = new ArrayList<>();
-        productGroups = new ArrayList<>();
+        groupedListItems = new ArrayList<>();
+
+        //MyApps.quantityUnits = new ArrayList<>();
+        //MyApps.locations = new ArrayList<>();
+        //MyApps.productGroups = new ArrayList<>();
 
         itemsToDisplay = Constants.STOCK.FILTER.ALL;
         errorState = Constants.STATE.NONE;
@@ -256,7 +255,7 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
         binding.swipeStock.setColorSchemeColors(
                 ContextCompat.getColor(activity, R.color.secondary)
         );
-        binding.swipeStock.setOnRefreshListener(this::refresh);
+       binding.swipeStock.setOnRefreshListener(this::refresh);
 
         // CHIPS
 
@@ -322,8 +321,8 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
                         RecyclerView.ViewHolder viewHolder,
                         List<UnderlayButton> underlayButtons
                 ) {
-                    if(viewHolder.getAdapterPosition() >= stockItems.size()) return;
-                    StockItem stockItem = stockItems.get(viewHolder.getAdapterPosition());
+                    if(viewHolder.getAdapterPosition() >= MyApps.stockItems.size()) return;
+                    StockItem stockItem = MyApps.stockItems.get(viewHolder.getAdapterPosition());
                     if(stockItem.getAmount() > 0
                             && stockItem.getProduct().getEnableTareWeightHandling() == 0
                     ) {
@@ -389,17 +388,17 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
     public void onSaveInstanceState(@NonNull Bundle outState) {
         if(isHidden()) return;
 
-        outState.putParcelableArrayList("stockItems", stockItems);
-        outState.putParcelableArrayList("expiringItems", expiringItems);
-        outState.putParcelableArrayList("expiredItems", expiredItems);
-        outState.putParcelableArrayList("missingItems", missingItems);
-        outState.putStringArrayList("shoppingListProducts", shoppingListProductIds);
-        outState.putParcelableArrayList("missingStockItems", missingStockItems);
+        outState.putParcelableArrayList("stockItems", MyApps.stockItems);
+        outState.putParcelableArrayList("expiringItems", MyApps.expiringItems);
+        outState.putParcelableArrayList("expiredItems", MyApps.expiredItems);
+        outState.putParcelableArrayList("missingItems", MyApps.missingItems);
+        outState.putStringArrayList("shoppingListProducts", MyApps.shoppingListProductIds);
+        outState.putParcelableArrayList("missingStockItems",MyApps.missingStockItems);
         outState.putParcelableArrayList("filteredItems", filteredItems);
         outState.putParcelableArrayList("displayedItems", displayedItems);
-        outState.putParcelableArrayList("quantityUnits", quantityUnits);
-        outState.putParcelableArrayList("locations", locations);
-        outState.putParcelableArrayList("productGroups", productGroups);
+        outState.putParcelableArrayList("quantityUnits", MyApps.quantityUnits);
+        outState.putParcelableArrayList("locations", MyApps.locations);
+        outState.putParcelableArrayList("productGroups", MyApps.productGroups);
 
         outState.putString("itemsToDisplay", itemsToDisplay);
         outState.putString("errorState", errorState);
@@ -416,17 +415,17 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
         errorState = savedInstanceState.getString("errorState", Constants.STATE.NONE);
         setError(errorState, false);
 
-        stockItems = savedInstanceState.getParcelableArrayList("stockItems");
-        expiringItems = savedInstanceState.getParcelableArrayList("expiringItems");
-        expiredItems = savedInstanceState.getParcelableArrayList("expiredItems");
-        missingItems = savedInstanceState.getParcelableArrayList("missingItems");
-        shoppingListProductIds = savedInstanceState.getStringArrayList("shoppingListProducts");
-        missingStockItems = savedInstanceState.getParcelableArrayList("missingStockItems");
+        MyApps.stockItems = savedInstanceState.getParcelableArrayList("stockItems") ;
+        MyApps.expiringItems = savedInstanceState.getParcelableArrayList("expiringItems");
+        MyApps.expiredItems = savedInstanceState.getParcelableArrayList("expiredItems");
+        MyApps.missingItems = savedInstanceState.getParcelableArrayList("missingItems");
+        MyApps.shoppingListProductIds = savedInstanceState.getStringArrayList("shoppingListProducts");
+        MyApps.missingStockItems = savedInstanceState.getParcelableArrayList("missingStockItems");
         filteredItems = savedInstanceState.getParcelableArrayList("filteredItems");
         displayedItems = savedInstanceState.getParcelableArrayList("displayedItems");
-        quantityUnits = savedInstanceState.getParcelableArrayList("quantityUnits");
-        locations = savedInstanceState.getParcelableArrayList("locations");
-        productGroups = savedInstanceState.getParcelableArrayList("productGroups");
+        MyApps.quantityUnits = savedInstanceState.getParcelableArrayList("quantityUnits");
+        MyApps.locations = savedInstanceState.getParcelableArrayList("locations");
+        MyApps.productGroups = savedInstanceState.getParcelableArrayList("productGroups");
 
         appBarBehavior.restoreInstanceState(savedInstanceState);
 
@@ -447,13 +446,13 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
         );
 
         chipExpiring.setText(
-                activity.getString(R.string.msg_expiring_products, expiringItems.size())
+                activity.getString(R.string.msg_expiring_products, MyApps.expiringItems.size())
         );
         chipExpired.setText(
-                activity.getString(R.string.msg_expired_products, expiredItems.size())
+                activity.getString(R.string.msg_expired_products, MyApps.expiredItems.size())
         );
         chipMissing.setText(
-                activity.getString(R.string.msg_missing_products, missingItems.size())
+                activity.getString(R.string.msg_missing_products, MyApps.missingItems.size())
         );
     }
 
@@ -464,8 +463,23 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
     }
 
     private void load() {
+
         if(activity.isOnline()) {
-            download();
+            dlHelper.getTimeDbChanged((
+                            date -> {
+
+                               if(MyApps.lastSynced == null || MyApps.lastSynced.before(date) || MyApps.stockItems.size() == 0) {
+                                   download(true);
+                                   MyApps.lastSynced = Calendar.getInstance().getTime();
+                               }
+                               else
+                               {
+                                   download(false);
+                               }
+                            }),
+                    () -> Log.i(TAG, "Oups")
+            );
+
         } else {
             setError(Constants.STATE.OFFLINE, false);
         }
@@ -474,7 +488,21 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
     public void refresh() {
         if(activity.isOnline()) {
             setError(Constants.STATE.NONE, true);
-            download();
+
+            dlHelper.getTimeDbChanged((
+                            date -> {
+                                if(MyApps.lastSynced == null || MyApps.lastSynced.before(date) ||  MyApps.stockItems.size() == 0) {
+                                    download(true);
+                                    MyApps.lastSynced = Calendar.getInstance().getTime();
+                                }
+                                else
+                                {
+                                    download(false);
+                                }
+                            }),
+                    () -> Log.i(TAG, "Oups")
+            );
+
         } else {
             binding.swipeStock.setRefreshing(false);
             activity.showMessage(
@@ -524,65 +552,97 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
         if(animUtil != null) animUtil.replaceViews(viewIn, viewOut, animated);
     }
 
-    private void download() {
+    private void download(boolean needloadStock) {
         binding.swipeStock.setRefreshing(true);
-        DownloadHelper.Queue queue = dlHelper.newQueue(
-                () -> onQueueEmpty(false),
-                this::onDownloadError
-        );
-
-
-        queue.append(
-                dlHelper.getQuantityUnits(quantityUnits -> this.quantityUnits = quantityUnits),
-                dlHelper.getProductGroups(productGroups -> {
-                    this.productGroups = productGroups;
-                    setMenuProductGroupFilters();
-                    updateMenuFilterVisibility();
-                }),
-                dlHelper.getStockItems(stockItems -> this.stockItems = stockItems),
-               // dlHelper.getProducts(listItems -> this.products = listItems),
-                dlHelper.getVolatile((expiring, expired, missing) -> {
-                    expiringItems = expiring;
-                    expiredItems = expired;
-                    missingItems = missing;
-                    chipExpiring.setText(
-                            activity.getString(R.string.msg_expiring_products, expiringItems.size())
-                    );
-                    chipExpired.setText(
-                            activity.getString(R.string.msg_expired_products, expired.size())
-                    );
-                    chipMissing.setText(
-                            activity.getString(R.string.msg_missing_products, missing.size())
-                    );
-                })
-
-        );
-
-        if(isFeatureEnabled(Constants.PREF.SHOW_SHOPPING_LIST_ICON_IN_STOCK)
-                && isFeatureEnabled(Constants.PREF.FEATURE_SHOPPING_LIST)
-        ) {
-            queue.append(
-                    dlHelper.getShoppingListItems(shoppingListItems -> {
-                        shoppingListProductIds = new ArrayList<>();
-                        for(ShoppingListItem item : shoppingListItems) {
-                            if(item.getProductId() != null && !item.getProductId().isEmpty()) {
-                                shoppingListProductIds.add(item.getProductId());
-                            }
-                        }
-                    })
+        if(needloadStock)
+        {
+            DownloadHelper.Queue queue = dlHelper.newQueue(
+                    () -> onQueueEmpty(false),
+                    this::onDownloadError
             );
-        }
-        if(isFeatureEnabled(Constants.PREF.FEATURE_STOCK_LOCATION_TRACKING)) {
+
+
+
+
             queue.append(
-                    dlHelper.getLocations(locations -> {
-                        this.locations = locations;
-                        setMenuLocationFilters();
+                    dlHelper.getQuantityUnits(quantityUnits -> MyApps.quantityUnits = quantityUnits),
+                    dlHelper.getProductGroups(productGroups -> {
+                        MyApps.productGroups = productGroups;
+                        setMenuProductGroupFilters();
                         updateMenuFilterVisibility();
+                    }),
+                    dlHelper.getStockItems(stockItems -> MyApps.stockItems = stockItems),
+                    // dlHelper.getProducts(listItems -> this.products = listItems),
+                    dlHelper.getVolatile((expiring, expired, missing) -> {
+                        MyApps.expiringItems = expiring;
+                        MyApps.expiredItems = expired;
+                        MyApps.missingItems = missing;
+                        chipExpiring.setText(
+                                activity.getString(R.string.msg_expiring_products, MyApps.expiringItems.size())
+                        );
+                        chipExpired.setText(
+                                activity.getString(R.string.msg_expired_products, expired.size())
+                        );
+                        chipMissing.setText(
+                                activity.getString(R.string.msg_missing_products, missing.size())
+                        );
                     })
+
             );
+
+            if(isFeatureEnabled(Constants.PREF.SHOW_SHOPPING_LIST_ICON_IN_STOCK)
+                    && isFeatureEnabled(Constants.PREF.FEATURE_SHOPPING_LIST)
+            ) {
+                queue.append(
+                        dlHelper.getShoppingListItems(shoppingListItems -> {
+                            MyApps.shoppingListProductIds = new ArrayList<>();
+                            for(ShoppingListItem item : shoppingListItems) {
+                                if(item.getProductId() != null && !item.getProductId().isEmpty()) {
+                                    MyApps.shoppingListProductIds.add(item.getProductId());
+                                }
+                            }
+                        })
+                );
+            }
+            if(isFeatureEnabled(Constants.PREF.FEATURE_STOCK_LOCATION_TRACKING)) {
+                queue.append(
+                        dlHelper.getLocations(locations -> {
+                            MyApps.locations = locations;
+                            setMenuLocationFilters();
+                            updateMenuFilterVisibility();
+                        })
+                );
+            }
+            queue.start();
+
         }
-        queue.start();
+        else
+        {
+            DownloadHelper.Queue queue = dlHelper.newQueue(
+                    () -> onQueueEmpty(false),
+                    this::onDownloadError
+            );
+
+            setMenuProductGroupFilters();
+            updateMenuFilterVisibility();
+
+            chipExpiring.setText(
+                    activity.getString(R.string.msg_expiring_products, MyApps.expiringItems.size())
+            );
+            chipExpired.setText(
+                    activity.getString(R.string.msg_expired_products, MyApps.expiredItems.size())
+            );
+            chipMissing.setText(
+                    activity.getString(R.string.msg_missing_products, MyApps.missingItems.size())
+            );
+            binding.swipeStock.setRefreshing(false);
+            queue.start();
+            isRestoredInstance = true;
+            filterItems(itemsToDisplay);
+        }
+
         downloadMissingItemDetails();
+
     }
 
 
@@ -594,13 +654,13 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
         );
 */
         HashMap<Integer, StockItem> stockItemHashMap = new HashMap<>();
-        for(StockItem s : stockItems) {
+        for(StockItem s : MyApps.stockItems) {
             stockItemHashMap.put(s.getProductId(), s); // create HashMap with all productIds of stockItems
 
             // TODO: Remove that in v2.0.0 (in server v3.0.0, bug is fixed)
             if(DateUtil.getDaysFromNow(s.getBestBeforeDate()) == 0) {
                 // these stockItems are not in volatile items (API bug until 2.7.1)
-                if(!expiringItems.contains(s)) expiringItems.add(s);
+                if(!MyApps.expiringItems.contains(s)) MyApps.expiringItems.add(s);
             }
         }
 
@@ -608,13 +668,13 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
         // update of chip is necessary because number of items maybe has changed
         // (if this lambda function was executed after the one of getVolatile)
         chipExpiring.setText(
-                activity.getString(R.string.msg_expiring_products, expiringItems.size())
+                activity.getString(R.string.msg_expiring_products, MyApps.expiringItems.size())
         );
 
-        missingStockItems.clear();
-        for(MissingItem missingItem : missingItems) {
+        MyApps.missingStockItems.clear();
+        for(MissingItem missingItem : MyApps.missingItems) {
             StockItem missingStockItem = stockItemHashMap.get(missingItem.getId());
-            missingStockItems.add(missingStockItem);
+            MyApps.missingStockItems.add(missingStockItem);
             /*
             if(missingStockItem != null) { // already downloaded
                 missingStockItems.add(missingStockItem);
@@ -663,16 +723,16 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
         // VOLATILE
         switch (itemsToDisplay) {
             case Constants.STOCK.FILTER.VOLATILE.EXPIRING:
-                filteredItems = this.expiringItems;
+                filteredItems = MyApps.expiringItems;
                 break;
             case Constants.STOCK.FILTER.VOLATILE.EXPIRED:
-                filteredItems = this.expiredItems;
+                filteredItems = MyApps.expiredItems;
                 break;
             case Constants.STOCK.FILTER.VOLATILE.MISSING:
-                filteredItems = this.missingStockItems;
+                filteredItems = MyApps.missingStockItems;
                 break;
             default:
-                filteredItems = this.stockItems;
+                filteredItems = MyApps.stockItems;
                 break;
         }
         if(debug) Log.i(TAG, "filterItems: filteredItems = " + filteredItems);
@@ -890,14 +950,14 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
 
             if(adapterCurrent != null && adapterCurrent.getClass() != StockItemAdapter.class) {
                 HashMap<Integer, QuantityUnit> quantityUnitHashMap = new HashMap<>();
-                for(QuantityUnit q : quantityUnits) quantityUnitHashMap.put(q.getId(), q);
+                for(QuantityUnit q : MyApps.quantityUnits) quantityUnitHashMap.put(q.getId(), q);
 
                 stockItemAdapter = new StockItemAdapter(
                         activity,
                         displayedItems,
-                        missingItems,
+                        MyApps.missingItems,
                         quantityUnitHashMap,
-                        shoppingListProductIds,
+                        MyApps.shoppingListProductIds,
                         daysExpiringSoon,
                         sortMode,
                         isFeatureEnabled(Constants.PREF.FEATURE_STOCK_BBD_TRACKING),
@@ -906,7 +966,7 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
                 binding.recyclerStock.setAdapter(stockItemAdapter);
             } else {
                 stockItemAdapter.setSortMode(sortMode);
-                stockItemAdapter.updateData(displayedItems, missingItems, shoppingListProductIds);
+                stockItemAdapter.updateData(displayedItems, MyApps.missingItems, MyApps.shoppingListProductIds);
                 stockItemAdapter.notifyDataSetChanged();
             }
             binding.recyclerStock.animate().alpha(1).setDuration(150).start();
@@ -1238,7 +1298,7 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
     }
 
     private QuantityUnit getQuantityUnit(int id) {
-        for(QuantityUnit quantityUnit : quantityUnits) {
+        for(QuantityUnit quantityUnit : MyApps.quantityUnits) {
             if(quantityUnit.getId() == id) {
                 return quantityUnit;
             }
@@ -1246,7 +1306,7 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
     }
 
     private Location getLocation(int id) {
-        for(Location location : locations) {
+        for(Location location : MyApps.locations) {
             if(location.getId() == id) {
                 return location;
             }
@@ -1255,7 +1315,7 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
 
     private ProductGroup getProductGroup(int id) {
         if(id ==-1) return null;
-        for(ProductGroup productGroup : productGroups) {
+        for(ProductGroup productGroup : MyApps.productGroups) {
             if(productGroup.getId() == id) {
                 return productGroup;
             }
@@ -1276,24 +1336,24 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
         if(activity == null) return;
         MenuItem menuItem = activity.getBottomMenu().findItem(R.id.action_filter);
         if(menuItem == null) return;
-        menuItem.setVisible(productGroups != null && !productGroups.isEmpty()
-                && locations != null
-                && !locations.isEmpty());
+        menuItem.setVisible(MyApps.productGroups != null && !MyApps.productGroups.isEmpty()
+                && MyApps.locations != null
+                && !MyApps.locations.isEmpty());
     }
 
     private void setMenuLocationFilters() {
-        if(activity == null || locations == null) return;
+        if(activity == null || MyApps.locations == null) return;
 
-        SortUtil.sortLocationsByName(locations, true);
+        SortUtil.sortLocationsByName(MyApps.locations, true);
 
         MenuItem menuItem = activity.getBottomMenu().findItem(R.id.action_filter_location);
         if(menuItem == null) return;
-        menuItem.setVisible(!locations.isEmpty());
+        menuItem.setVisible(!MyApps.locations.isEmpty());
 
         SubMenu menuLocations = menuItem.getSubMenu();
         if(menuLocations == null) return;
         menuLocations.clear();
-        for(Location location : locations) {
+        for(Location location : MyApps.locations) {
             menuLocations.add(location.getName()).setOnMenuItemClickListener(item -> {
                 //if(!uiMode.equals(Constants.UI.STOCK_DEFAULT)) return false;
                 filterLocation(location);
@@ -1303,20 +1363,20 @@ public class StockFragment extends Fragment implements StockItemAdapter.StockIte
     }
 
     private void setMenuProductGroupFilters() {
-        if(activity == null || productGroups == null) return;
+        if(activity == null ||MyApps.productGroups == null) return;
         MenuItem menuItem = activity.getBottomMenu().findItem(R.id.action_filter_product_group);
         if(menuItem == null) return;
         SubMenu menuProductGroups = menuItem.getSubMenu();
         menuProductGroups.clear();
-        SortUtil.sortProductGroupsByName(productGroups, true);
-        for(ProductGroup productGroup : productGroups) {
+        SortUtil.sortProductGroupsByName(MyApps.productGroups, true);
+        for(ProductGroup productGroup : MyApps.productGroups) {
             menuProductGroups.add(productGroup.getName()).setOnMenuItemClickListener(item -> {
                 //if(!uiMode.equals(Constants.UI.STOCK_DEFAULT)) return false;
                 filterProductGroup(productGroup);
                 return true;
             });
         }
-        menuItem.setVisible(!productGroups.isEmpty());
+        menuItem.setVisible(!MyApps.productGroups.isEmpty());
     }
 
     private void setMenuSorting() {

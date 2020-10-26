@@ -51,9 +51,11 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 
+import xyz.zedler.patrick.grocy.MyApps;
 import xyz.zedler.patrick.grocy.R;
 import xyz.zedler.patrick.grocy.activity.MainActivity;
 import xyz.zedler.patrick.grocy.activity.ShoppingActivity;
@@ -112,17 +114,10 @@ public class ShoppingListFragment extends Fragment implements
     private FilterChip chipUndone;
     private FilterChip chipMissing;
 
-    private ArrayList<ShoppingList> shoppingLists;
-    private ArrayList<ShoppingListItem> shoppingListItems;
-    private ArrayList<ShoppingListItem> shoppingListItemsSelected;
-    private ArrayList<MissingItem> missingItems;
-    private ArrayList<ShoppingListItem> missingShoppingListItems;
-    private ArrayList<ShoppingListItem> undoneShoppingListItems;
+
+
     private ArrayList<ShoppingListItem> filteredItems;
     private ArrayList<ShoppingListItem> displayedItems;
-    private ArrayList<QuantityUnit> quantityUnits;
-    private ArrayList<Product> products;
-    private ArrayList<ProductGroup> productGroups;
     private ArrayList<GroupedListItem> groupedListItems;
     private HashMap<Integer, ShoppingList> shoppingListHashMap;
 
@@ -185,18 +180,10 @@ public class ShoppingListFragment extends Fragment implements
         grocyApi = activity.getGrocy();
 
         // INITIALIZE VARIABLES
+        MyApps.needInit();
 
-        shoppingLists = new ArrayList<>();
-        shoppingListItems = new ArrayList<>();
-        shoppingListItemsSelected = new ArrayList<>();
-        missingItems = new ArrayList<>();
-        missingShoppingListItems = new ArrayList<>();
-        undoneShoppingListItems = new ArrayList<>();
         filteredItems = new ArrayList<>();
         displayedItems = new ArrayList<>();
-        quantityUnits = new ArrayList<>();
-        products = new ArrayList<>();
-        productGroups = new ArrayList<>();
         groupedListItems = new ArrayList<>();
         shoppingListHashMap = new HashMap<>();
 
@@ -361,17 +348,17 @@ public class ShoppingListFragment extends Fragment implements
     public void onSaveInstanceState(@NonNull Bundle outState) {
         if(isHidden()) return;
 
-        outState.putParcelableArrayList("shoppingLists", shoppingLists);
-        outState.putParcelableArrayList("shoppingListItems", shoppingListItems);
-        outState.putParcelableArrayList("shoppingListItemsSelected", shoppingListItemsSelected);
-        outState.putParcelableArrayList("missingItems", missingItems);
-        outState.putParcelableArrayList("missingShoppingListItems", missingShoppingListItems);
-        outState.putParcelableArrayList("undoneShoppingListItems", undoneShoppingListItems);
+        outState.putParcelableArrayList("shoppingLists", MyApps.shoppingLists);
+        outState.putParcelableArrayList("shoppingListItems", MyApps.shoppingListItems);
+        outState.putParcelableArrayList("shoppingListItemsSelected", MyApps.shoppingListItemsSelected);
+        outState.putParcelableArrayList("missingItems", MyApps.missingItems);
+        outState.putParcelableArrayList("missingShoppingListItems", MyApps.missingShoppingListItems);
+        outState.putParcelableArrayList("undoneShoppingListItems", MyApps.undoneShoppingListItems);
         outState.putParcelableArrayList("filteredItems", filteredItems);
         outState.putParcelableArrayList("displayedItems", displayedItems);
-        outState.putParcelableArrayList("quantityUnits", quantityUnits);
-        outState.putParcelableArrayList("products", products);
-        outState.putParcelableArrayList("productGroups", productGroups);
+        outState.putParcelableArrayList("quantityUnits", MyApps.quantityUnits);
+        outState.putParcelableArrayList("products", MyApps.products);
+        outState.putParcelableArrayList("productGroups", MyApps.productGroups);
 
         outState.putString("itemsToDisplay", itemsToDisplay);
         outState.putString("errorState", errorState);
@@ -390,22 +377,22 @@ public class ShoppingListFragment extends Fragment implements
         errorState = savedInstanceState.getString("errorState", Constants.STATE.NONE);
         setError(errorState, false);
 
-        shoppingLists = savedInstanceState.getParcelableArrayList("shoppingLists");
-        shoppingListItems = savedInstanceState.getParcelableArrayList("shoppingListItems");
-        shoppingListItemsSelected = savedInstanceState.getParcelableArrayList(
+        MyApps.shoppingLists = savedInstanceState.getParcelableArrayList("shoppingLists");
+        MyApps.shoppingListItems = savedInstanceState.getParcelableArrayList("shoppingListItems");
+        MyApps.shoppingListItemsSelected = savedInstanceState.getParcelableArrayList(
                 "shoppingListItemsSelected"
         );
-        missingItems = savedInstanceState.getParcelableArrayList("missingItems");
-        missingShoppingListItems = savedInstanceState.getParcelableArrayList(
+        MyApps.missingItems = savedInstanceState.getParcelableArrayList("missingItems");
+        MyApps.missingShoppingListItems = savedInstanceState.getParcelableArrayList(
                 "missingShoppingListItems"
         );
-        undoneShoppingListItems = savedInstanceState.getParcelableArrayList(
+        MyApps.undoneShoppingListItems = savedInstanceState.getParcelableArrayList(
                 "undoneShoppingListItems"
         );
         filteredItems = savedInstanceState.getParcelableArrayList("filteredItems");
-        quantityUnits = savedInstanceState.getParcelableArrayList("quantityUnits");
-        products = savedInstanceState.getParcelableArrayList("products");
-        productGroups = savedInstanceState.getParcelableArrayList("productGroups");
+        MyApps.quantityUnits = savedInstanceState.getParcelableArrayList("quantityUnits");
+        MyApps.products = savedInstanceState.getParcelableArrayList("products");
+        MyApps.productGroups = savedInstanceState.getParcelableArrayList("productGroups");
 
         groupedListItems = new ArrayList<>();
         shoppingListHashMap = new HashMap<>();
@@ -426,10 +413,10 @@ public class ShoppingListFragment extends Fragment implements
         );
 
         chipMissing.setText(
-                activity.getString(R.string.msg_missing_products, missingItems.size())
+                activity.getString(R.string.msg_missing_products, MyApps.missingItems.size())
         );
         chipUndone.setText(
-                activity.getString(R.string.msg_undone_items, undoneShoppingListItems.size())
+                activity.getString(R.string.msg_undone_items, MyApps.undoneShoppingListItems.size())
         );
     }
 
@@ -520,15 +507,36 @@ public class ShoppingListFragment extends Fragment implements
                 this::onQueueEmpty,
                 this::onDownloadError
         );
-        queue.append(
-                dlHelper.getShoppingLists(listItems -> this.shoppingLists = listItems),
-                dlHelper.getShoppingListItems(listItems -> this.shoppingListItems = listItems),
-                dlHelper.getProductGroups(listItems -> this.productGroups = listItems),
-                dlHelper.getQuantityUnits(listItems -> this.quantityUnits = listItems),
-                dlHelper.getProducts(listItems -> this.products = listItems)
-                //dlHelper.getVolatile((expiring, expired, missing) -> missingItems = missing)
+        dlHelper.getTimeDbChanged((
+                        date -> {
+                            if(MyApps.lastSynced == null || MyApps.lastSynced.before(date) ||  MyApps.shoppingLists.size() == 0) {
+                                queue.append(
+                                        dlHelper.getShoppingLists(listItems -> MyApps.shoppingLists = listItems),
+                                        dlHelper.getShoppingListItems(listItems -> MyApps.shoppingListItems = listItems),
+                                        dlHelper.getProductGroups(listItems -> MyApps.productGroups = listItems),
+                                        dlHelper.getQuantityUnits(listItems -> MyApps.quantityUnits = listItems),
+                                        dlHelper.getProducts(listItems -> MyApps.products = listItems),
+                                        dlHelper.getQuantityUnits(quantityUnits -> MyApps.quantityUnits = quantityUnits),
+                                        dlHelper.getProductGroups(productGroups -> {
+                                            MyApps.productGroups = productGroups;
+
+                                        })
+
+
+                                        //dlHelper.getVolatile((expiring, expired, missing) -> missingItems = missing)
+                                );
+                                queue.start();
+                                MyApps.lastSynced = Calendar.getInstance().getTime();
+                            }
+                            else
+                            {
+                                onQueueEmpty();
+                            }
+                        }),
+                () -> Log.i(TAG, "Oups")
         );
-        queue.start();
+
+
     }
 
     private void onQueueEmpty() {
@@ -541,7 +549,7 @@ public class ShoppingListFragment extends Fragment implements
         if(!isDataStored) {
             // set shopping list if chosen with name on fragment start
             if(startupShoppingListName != null) {
-                for(ShoppingList shoppingList : shoppingLists) {
+                for(ShoppingList shoppingList : MyApps.shoppingLists) {
                     if(shoppingList.getName().equals(startupShoppingListName)) {
                         selectShoppingList(shoppingList.getId());
                     }
@@ -551,32 +559,32 @@ public class ShoppingListFragment extends Fragment implements
             changeAppBarTitle();
 
             ArrayList<String> missingProductIds = new ArrayList<>();
-            for(MissingItem missingItem : missingItems) {
+            for(MissingItem missingItem : MyApps.missingItems) {
                 missingProductIds.add(String.valueOf(missingItem.getId()));
             }
-            missingShoppingListItems = new ArrayList<>();
-            undoneShoppingListItems = new ArrayList<>();
-            shoppingListItemsSelected = new ArrayList<>();
+            MyApps.missingShoppingListItems = new ArrayList<>();
+            MyApps.undoneShoppingListItems = new ArrayList<>();
+            MyApps.shoppingListItemsSelected = new ArrayList<>();
             ArrayList<Integer> allUsedProductIds = new ArrayList<>();  // for database preparing
-            for(ShoppingListItem shoppingListItem : shoppingListItems) {
+            for(ShoppingListItem shoppingListItem : MyApps.shoppingListItems) {
                 if(shoppingListItem.getProductId() != null) {
                     allUsedProductIds.add(Integer.parseInt(shoppingListItem.getProductId()));
                 }
                 if(shoppingListItem.getShoppingListId() != selectedShoppingListId) continue;
-                shoppingListItemsSelected.add(shoppingListItem);
+                MyApps.shoppingListItemsSelected.add(shoppingListItem);
                 if(missingProductIds.contains(shoppingListItem.getProductId())) {
                     shoppingListItem.setIsMissing(true);
-                    missingShoppingListItems.add(shoppingListItem);
+                    MyApps.missingShoppingListItems.add(shoppingListItem);
                 }
                 if(shoppingListItem.getDone() == 0) {
-                    undoneShoppingListItems.add(shoppingListItem);
+                    MyApps.undoneShoppingListItems.add(shoppingListItem);
                 }
             }
             chipMissing.setText(
-                    activity.getString(R.string.msg_missing_products, missingShoppingListItems.size())
+                    activity.getString(R.string.msg_missing_products, MyApps.missingShoppingListItems.size())
             );
             chipUndone.setText(
-                    activity.getString(R.string.msg_undone_items, undoneShoppingListItems.size())
+                    activity.getString(R.string.msg_undone_items, MyApps.undoneShoppingListItems.size())
             );
 
             // sync modified data and store new data
@@ -584,11 +592,11 @@ public class ShoppingListFragment extends Fragment implements
                     AppDatabase.getAppDatabase(activity.getApplicationContext()),
                     this,
                     true,
-                    shoppingLists,
-                    shoppingListItems,
-                    productGroups,
-                    quantityUnits,
-                    products,
+                    MyApps.shoppingLists,
+                    MyApps.shoppingListItems,
+                    MyApps.productGroups,
+                    MyApps.quantityUnits,
+                    MyApps.products,
                     allUsedProductIds,
                     false
             ).execute();
@@ -599,8 +607,8 @@ public class ShoppingListFragment extends Fragment implements
 
             // set product in shoppingListItem
             HashMap<Integer, Product> productHashMap = new HashMap<>();
-            for(Product p : products) productHashMap.put(p.getId(), p);
-            for(ShoppingListItem shoppingListItem : shoppingListItemsSelected) {
+            for(Product p : MyApps.products) productHashMap.put(p.getId(), p);
+            for(ShoppingListItem shoppingListItem : MyApps.shoppingListItemsSelected) {
                 if(shoppingListItem.getProductId() == null) continue;
                 shoppingListItem.setProduct(
                         productHashMap.get(Integer.parseInt(shoppingListItem.getProductId()))
@@ -633,31 +641,31 @@ public class ShoppingListFragment extends Fragment implements
             ArrayList<ProductGroup> productGroups,
             ArrayList<QuantityUnit> quantityUnits
     ) { // for offline mode
-        this.shoppingListItems = shoppingListItems;
-        this.shoppingLists = shoppingLists;
-        this.productGroups = productGroups;
-        this.quantityUnits = quantityUnits;
+        MyApps.shoppingListItems = shoppingListItems;
+        MyApps.shoppingLists = shoppingLists;
+        MyApps.productGroups = productGroups;
+        MyApps.quantityUnits = quantityUnits;
 
-        missingShoppingListItems = new ArrayList<>();
-        undoneShoppingListItems = new ArrayList<>();
-        shoppingListItemsSelected = new ArrayList<>();
+        MyApps.missingShoppingListItems = new ArrayList<>();
+        MyApps.undoneShoppingListItems = new ArrayList<>();
+        MyApps.shoppingListItemsSelected = new ArrayList<>();
 
         for(ShoppingListItem shoppingListItem : shoppingListItems) {
             if(shoppingListItem.getShoppingListId() != selectedShoppingListId) continue;
-            shoppingListItemsSelected.add(shoppingListItem);
+            MyApps.shoppingListItemsSelected.add(shoppingListItem);
             if(shoppingListItem.getDone() == 0) {
-                undoneShoppingListItems.add(shoppingListItem);
+                MyApps.undoneShoppingListItems.add(shoppingListItem);
             }
             if(shoppingListItem.isMissing()) {
-                missingShoppingListItems.add(shoppingListItem);
+                MyApps.missingShoppingListItems.add(shoppingListItem);
             }
         }
 
         chipMissing.setText(
-                activity.getString(R.string.msg_missing_products, missingShoppingListItems.size())
+                activity.getString(R.string.msg_missing_products, MyApps.missingShoppingListItems.size())
         );
         chipUndone.setText(
-                activity.getString(R.string.msg_undone_items, undoneShoppingListItems.size())
+                activity.getString(R.string.msg_undone_items, MyApps.undoneShoppingListItems.size())
         );
         changeAppBarTitle();
 
@@ -672,13 +680,13 @@ public class ShoppingListFragment extends Fragment implements
         // VOLATILE
         switch (itemsToDisplay) {
             case Constants.SHOPPING_LIST.FILTER.MISSING:
-                filteredItems = this.missingShoppingListItems;
+                filteredItems = MyApps.missingShoppingListItems;
                 break;
             case Constants.SHOPPING_LIST.FILTER.UNDONE:
-                filteredItems = this.undoneShoppingListItems;
+                filteredItems = MyApps.undoneShoppingListItems;
                 break;
             default:
-                filteredItems = this.shoppingListItemsSelected;
+                filteredItems = MyApps.shoppingListItemsSelected;
                 break;
         }
         if(debug) Log.i(TAG, "filterItems: filteredItems = " + filteredItems);
@@ -747,8 +755,8 @@ public class ShoppingListFragment extends Fragment implements
         groupedListItems = ShoppingListHelper.groupItems(
                 activity,
                 displayedItems,
-                productGroups,
-                shoppingLists,
+                MyApps.productGroups,
+                MyApps.shoppingLists,
                 selectedShoppingListId,
                 search.isEmpty() && itemsToDisplay.equals(
                         Constants.SHOPPING_LIST.FILTER.ALL
@@ -758,7 +766,7 @@ public class ShoppingListFragment extends Fragment implements
                 new ShoppingListItemAdapter(
                         activity,
                         groupedListItems,
-                        quantityUnits,
+                        MyApps.quantityUnits,
                         this
                 )
         );
@@ -778,7 +786,7 @@ public class ShoppingListFragment extends Fragment implements
 
     private void showShoppingListsBottomSheet() {
         Bundle bundle = new Bundle();
-        bundle.putParcelableArrayList(Constants.ARGUMENT.SHOPPING_LISTS, shoppingLists);
+        bundle.putParcelableArrayList(Constants.ARGUMENT.SHOPPING_LISTS, MyApps.shoppingLists);
         bundle.putInt(Constants.ARGUMENT.SELECTED_ID, selectedShoppingListId);
         bundle.putBoolean(
                 Constants.ARGUMENT.SHOW_OFFLINE,
@@ -827,7 +835,7 @@ public class ShoppingListFragment extends Fragment implements
 
     private ShoppingList getShoppingList(int shoppingListId) {
         if(shoppingListHashMap.isEmpty()) {
-            for(ShoppingList s : shoppingLists) shoppingListHashMap.put(s.getId(), s);
+            for(ShoppingList s : MyApps.shoppingLists) shoppingListHashMap.put(s.getId(), s);
         }
         return shoppingListHashMap.get(shoppingListId);
     }
@@ -866,23 +874,23 @@ public class ShoppingListFragment extends Fragment implements
     private void updateDoneStatus(ShoppingListItem shoppingListItem, int position) {
         new Thread(() -> database.shoppingListItemDao().update(shoppingListItem)).start();
         if(shoppingListItem.getDone() == 1) {
-            undoneShoppingListItems.remove(shoppingListItem);
-            if(undoneShoppingListItems.isEmpty()) emptyStateHelper.setNoFilterResults();
+            MyApps.undoneShoppingListItems.remove(shoppingListItem);
+            if(MyApps.undoneShoppingListItems.isEmpty()) emptyStateHelper.setNoFilterResults();
         } else {
-            undoneShoppingListItems = new ArrayList<>();
-            for(ShoppingListItem shoppingListItem1 : shoppingListItems) {
+            MyApps.undoneShoppingListItems = new ArrayList<>();
+            for(ShoppingListItem shoppingListItem1 : MyApps.shoppingListItems) {
                 if(shoppingListItem1.getShoppingListId() != selectedShoppingListId) {
                     continue;
                 }
                 if(shoppingListItem1.getDone() == 0) {
-                    undoneShoppingListItems.add(shoppingListItem1);
+                    MyApps.undoneShoppingListItems.add(shoppingListItem1);
                 }
             }
         }
         chipUndone.setText(
                 activity.getString(
                         R.string.msg_undone_items,
-                        undoneShoppingListItems.size()
+                        MyApps.undoneShoppingListItems.size()
                 )
         );
         if(itemsToDisplay.equals(Constants.SHOPPING_LIST.FILTER.UNDONE)) {
@@ -1048,7 +1056,7 @@ public class ShoppingListFragment extends Fragment implements
         MenuItem purchaseItems = activity.getBottomMenu().findItem(R.id.action_purchase_all_items);
         if(purchaseItems != null) {
             purchaseItems.setOnMenuItemClickListener(item -> {
-                if(shoppingListItemsSelected.isEmpty()) {
+                if(MyApps.shoppingListItemsSelected.isEmpty()) {
                     showMessage(activity.getString(R.string.error_empty_shopping_list));
                     return true;
                 }
@@ -1057,7 +1065,7 @@ public class ShoppingListFragment extends Fragment implements
                         Constants.ARGUMENT.TYPE,
                         Constants.ACTION.PURCHASE_MULTI_THEN_SHOPPING_LIST
                 );
-                ArrayList<ShoppingListItem> listItems = new ArrayList<>(shoppingListItemsSelected);
+                ArrayList<ShoppingListItem> listItems = new ArrayList<>(MyApps.shoppingListItemsSelected);
                 SortUtil.sortShoppingListItemsByName(listItems, true);
                 bundle.putParcelableArrayList(Constants.ARGUMENT.SHOPPING_LIST_ITEMS, listItems);
                 activity.replaceFragment(Constants.UI.PURCHASE, bundle, true);
@@ -1175,7 +1183,7 @@ public class ShoppingListFragment extends Fragment implements
                     refresh();
                 }
         );
-        for(ShoppingListItem shoppingListItem : shoppingListItems) {
+        for(ShoppingListItem shoppingListItem : MyApps.shoppingListItems) {
             if(shoppingListItem.getShoppingListId() != shoppingList.getId()) continue;
             if(shoppingListItem.getDone() == 0) continue;
             queue.append(dlHelper.deleteShoppingListItem(shoppingListItem.getId()));
@@ -1203,7 +1211,7 @@ public class ShoppingListFragment extends Fragment implements
                                     shoppingList.getName()
                             )
                     );
-                    shoppingLists.remove(shoppingList);
+                    MyApps.shoppingLists.remove(shoppingList);
                     selectShoppingList(1);
                 },
                 error -> {
@@ -1222,14 +1230,14 @@ public class ShoppingListFragment extends Fragment implements
         // as an id – else they will never show up on any shopping list
         ArrayList<Integer> listIds = new ArrayList<>();
         if(isFeatureMultipleListsEnabled()) {
-            for(ShoppingList shoppingList : shoppingLists) listIds.add(shoppingList.getId());
+            for(ShoppingList shoppingList : MyApps.shoppingLists) listIds.add(shoppingList.getId());
             if(listIds.isEmpty()) return;  // possible if download error happened
         } else {
             listIds.add(1);  // id of first and single shopping list
         }
 
         ShoppingListItemDao itemDao = database.shoppingListItemDao();
-        for(ShoppingListItem listItem : shoppingListItems) {
+        for(ShoppingListItem listItem : MyApps.shoppingListItems) {
             if(!listIds.contains(listItem.getShoppingListId())) {
                 if(debug) Log.i(TAG, "tidyUpItems: " + listItem);
                 dlHelper.delete(
@@ -1301,7 +1309,7 @@ public class ShoppingListFragment extends Fragment implements
             boolean onlyDeltaUpdateAdapter
     ) {
         isDataStored = true;
-        this.shoppingListItems = shoppingListItems;
+        MyApps.shoppingListItems = shoppingListItems;
         onQueueEmpty();
     }
 
@@ -1369,7 +1377,7 @@ public class ShoppingListFragment extends Fragment implements
     }
 
     private QuantityUnit getQuantityUnit(int id) {
-        for(QuantityUnit quantityUnit : quantityUnits) {
+        for(QuantityUnit quantityUnit : MyApps.quantityUnits) {
             if(quantityUnit.getId() == id) {
                 return quantityUnit;
             }

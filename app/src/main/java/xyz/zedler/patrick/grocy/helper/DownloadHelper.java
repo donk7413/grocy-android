@@ -853,7 +853,11 @@ public class DownloadHelper {
                 isRunning = true;
             }
             while(!queueItems.isEmpty()) {
+
+
                 QueueItem queueItem = queueItems.remove(0);
+                Log.d("Test", "execution de ".concat(queueItem.toString()));
+
                 queueItem.perform(response -> {
                     queueSize--;
                     if(queueSize > 0) return;
